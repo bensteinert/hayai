@@ -13,7 +13,7 @@
 #include <sstream>
 
 
-namespace mod_hayai
+namespace hayai
 {
 #define WRITE_PROPERTY(stream, key, value, indent) {       \
     stream << std::setw(indent*4) << "\"" << key << "\": \"" << value << "\"," << std::endl;      \
