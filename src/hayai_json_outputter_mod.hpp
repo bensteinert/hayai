@@ -13,7 +13,7 @@
 #include <sstream>
 
 
-namespace hayai
+namespace mod_hayai
 {
 #define WRITE_PROPERTY(stream, key, value, indent) {       \
     stream << std::setw(indent*4) << "\"" << key << "\": \"" << value << "\"," << std::endl;      \
@@ -28,7 +28,7 @@ namespace hayai
 }
 
     class JsonOutputter
-            :   public Outputter {
+            :   public hayai::Outputter {
 
     private:
         bool initialWrite;
@@ -88,7 +88,7 @@ namespace hayai
         virtual void EndTest(const std::string& fixtureName,
                              const std::string& testName,
                              const std::string& parameters,
-                             const TestResult& result) {
+                             const hayai::TestResult& result) {
             if (!jsonFile) {
                 return;
             }
