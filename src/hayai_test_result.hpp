@@ -1,29 +1,48 @@
 #ifndef __HAYAI_TESTRESULT
 #define __HAYAI_TESTRESULT
+#include <vector>
+#include <stdexcept>
+#include <limits>
+
+#include "hayai_clock.hpp"
+
+
 namespace hayai
 {
     /// Test result descriptor.
 
-    /// All times are expressed in nanoseconds.
+    /// All durations are expressed in nanoseconds.
     struct TestResult
     {
     public:
         /// Initialize test result descriptor.
 
-        /// @param runs Number of runs.
-        /// @param iterations Number of iterations.
-        TestResult(std::size_t runs,
-                   std::size_t iterations,
-                   double timeTotal,
-                   double timeRunMin,
-                   double timeRunMax)
-            :   _runs(runs),
+        /// @param runTimes Timing for the individual runs.
+        /// @param iterations Number of iterations per run.
+        TestResult(const std::vector<uint64_t>& runTimes,
+                   std::size_t iterations)
+            :   _runTimes(runTimes),
                 _iterations(iterations),
-                _timeTotal(timeTotal),
-                _timeRunMin(timeRunMin),
-                _timeRunMax(timeRunMax)
+                _timeTotal(0),
+                _timeRunMin(std::numeric_limits<uint64_t>::max()),
+                _timeRunMax(std::numeric_limits<uint64_t>::min())
         {
+            // Summarize under the assumption of values being accessed more
+            // than once.
+            std::vector<uint64_t>::iterator runIt = _runTimes.begin();
 
+            while (runIt != _runTimes.end())
+            {
+                const uint64_t run = *runIt;
+
+                _timeTotal += run;
+                if ((runIt == _runTimes.begin()) || (run > _timeRunMax))
+                    _timeRunMax = run;
+                if ((runIt == _runTimes.begin()) || (run < _timeRunMin))
+                    _timeRunMin = run;
+
+                ++runIt;
+            }
         }
 
 
@@ -34,10 +53,17 @@ namespace hayai
         }
 
 
+        /// Run times.
+        inline const std::vector<uint64_t>& RunTimes() const
+        {
+            return _runTimes;
+        }
+
+
         /// Average time per run.
         inline double RunTimeAverage() const
         {
-            return _timeTotal / double(_runs);
+            return double(_timeTotal) / double(_runTimes.size());
         }
 
 
@@ -117,11 +143,11 @@ namespace hayai
             return 1000000000.0 / IterationTimeMinimum();
         }
     private:
-        std::size_t _runs;
+        std::vector<uint64_t> _runTimes;
         std::size_t _iterations;
-        double _timeTotal;
-        double _timeRunMin;
-        double _timeRunMax;
+        uint64_t _timeTotal;
+        uint64_t _timeRunMin;
+        uint64_t _timeRunMax;
     };
 }
 #endif

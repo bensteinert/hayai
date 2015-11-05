@@ -5,6 +5,7 @@
 #include "hayai_clock.hpp"
 #include "hayai_test_result.hpp"
 
+
 namespace hayai
 {
     /// Base test class.
@@ -38,8 +39,10 @@ namespace hayai
 
         /// @param iterations Number of iterations to gather data for.
         /// @returns the number of nanoseconds the run took.
-        int64_t Run(std::size_t iterations)
+        uint64_t Run(std::size_t iterations)
         {
+            std::size_t iteration = iterations;
+            
             // Set up the testing fixture.
             SetUp();
 
@@ -49,7 +52,6 @@ namespace hayai
             startTime = Clock::Now();
 
             // Run the test body for each iteration.
-            std::size_t iteration = iterations;
             while (iteration--)
                 TestBody();
 

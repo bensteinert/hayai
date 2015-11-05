@@ -1,4 +1,6 @@
 language: cpp
+notifications:
+  email: false
 compiler:
   - clang
   - gcc
@@ -12,3 +14,6 @@ script:
   - make
   - DESTDIR=install_tmp make install
   - valgrind --leak-check=full --error-exitcode=1 ./sample/sample
+  - ./script/travis-cmake -DTEST=true .
+  - make
+  - make test

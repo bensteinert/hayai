@@ -1,6 +1,7 @@
 //
 // System-specific implementation of the clock functions.
 //
+// Copyright (C) 2011 Nick Bruun <nick@bruun.co>
 // Copyright (C) 2013 Vlad Lazarenko <vlad@lazarenko.me>
 // Copyright (C) 2014 Nicolas Pauss <nicolas.pauss@gmail.com>
 //
@@ -30,8 +31,15 @@
 // measurements. Therefore, we are much better off having full control of what
 // mechanism we use to obtain the system clock.
 //
-#ifndef __HAYAI_CLOCK_HPP
-#define __HAYAI_CLOCK_HPP
+// Note on durations: it is assumed that end times passed to the clock methods
+// are all after the start time. Wrap-around of clocks is not tested, as
+// nanosecond precision of unsigned 64-bit integers would require an uptime of
+// almost 585 years for this to happen. Let's call ourselves safe on that one.
+//
+#ifndef __HAYAI_CLOCK
+#define __HAYAI_CLOCK
+
+#include "hayai_compatibility.hpp"
 
 
 // Win32
@@ -65,7 +73,9 @@
 #error "Unable to define high resolution timer for an unknown OS."
 #endif
 
+#include <stdexcept>
 #include <stdint.h>
+
 
 namespace hayai
 {
@@ -97,18 +107,27 @@ namespace hayai
         /// @param endTime End time point.
         /// @returns the number of nanoseconds elapsed between the two time
         /// points.
-        static int64_t Duration(const TimePoint& startTime,
-                                const TimePoint& endTime)
+        static uint64_t Duration(const TimePoint& startTime,
+                                 const TimePoint& endTime)
         {
             const static double performanceFrequencyNs =
                 PerformanceFrequencyNs();
 
-            return static_cast<int64_t>((endTime.QuadPart - startTime.QuadPart)
-                * performanceFrequencyNs);
+            return static_cast<uint64_t>(
+                (endTime.QuadPart - startTime.QuadPart)
+                * performanceFrequencyNs
+            );
         }
 
-    private:
 
+        /// Clock implementation description.
+
+        /// @returns a description of the clock implementation used.
+        static const char* Description()
+        {
+            return "QueryPerformanceCounter";
+        }
+    private:
         static double PerformanceFrequencyNs()
         {
             TimePoint result;
@@ -117,7 +136,7 @@ namespace hayai
         }
     };
 
-// Apple
+// Mach kernel.
 #elif defined(__APPLE__) && defined(__MACH__)
     class Clock
     {
@@ -131,7 +150,7 @@ namespace hayai
         /// Get the current time as a time point.
 
         /// @returns the current time point.
-        static TimePoint Now()
+        static TimePoint Now() __hayai_noexcept
         {
             return mach_absolute_time();
         }
@@ -143,13 +162,22 @@ namespace hayai
         /// @param endTime End time point.
         /// @returns the number of nanoseconds elapsed between the two time
         /// points.
-        static int64_t Duration(const TimePoint& startTime,
-                                const TimePoint& endTime)
+        static uint64_t Duration(const TimePoint& startTime,
+                                 const TimePoint& endTime) __hayai_noexcept
         {
             mach_timebase_info_data_t time_info;
             mach_timebase_info(&time_info);
-            return int64_t((endTime - startTime) *
-                           time_info.numer / time_info.denom);
+
+            return (endTime - startTime) * time_info.numer / time_info.denom;
+        }
+
+
+        /// Clock implementation description.
+
+        /// @returns a description of the clock implementation used.
+        static const char* Description()
+        {
+            return "mach_absolute_time";
         }
     };
 
@@ -170,7 +198,7 @@ namespace hayai
         /// Get the current time as a time point.
 
         /// @returns the current time point.
-        static TimePoint Now()
+        static TimePoint Now() __hayai_noexcept
         {
             return gethrtime();
         }
@@ -182,10 +210,19 @@ namespace hayai
         /// @param endTime End time point.
         /// @returns the number of nanoseconds elapsed between the two time
         /// points.
-        static int64_t Duration(const TimePoint& startTime,
-                                const TimePoint& endTime)
+        static uint64_t Duration(const TimePoint& startTime,
+                                 const TimePoint& endTime) __hayai_noexcept
         {
-            return static_cast<int64_t>(endTime - startTime);
+            return static_cast<uint64_t>(endTime - startTime);
+        }
+
+
+        /// Clock implementation description.
+
+        /// @returns a description of the clock implementation used.
+        static const char* Description()
+        {
+            return "gethrtime";
         }
     };
 
@@ -204,7 +241,7 @@ namespace hayai
         /// Get the current time as a time point.
 
         /// @returns the current time point.
-        static TimePoint Now()
+        static TimePoint Now() __hayai_noexcept
         {
             TimePoint result;
 #       if   defined(CLOCK_MONOTONIC_RAW)
@@ -226,22 +263,40 @@ namespace hayai
         /// @param endTime End time point.
         /// @returns the number of nanoseconds elapsed between the two time
         /// points.
-        static int64_t Duration(const TimePoint& startTime,
-                                const TimePoint& endTime)
+        static uint64_t Duration(const TimePoint& startTime,
+                                 const TimePoint& endTime) __hayai_noexcept
         {
             TimePoint timeDiff;
 
             timeDiff.tv_sec = endTime.tv_sec - startTime.tv_sec;
             if (endTime.tv_nsec < startTime.tv_nsec)
             {
-                timeDiff.tv_nsec = endTime.tv_nsec + 1000000000L -
+                timeDiff.tv_nsec = endTime.tv_nsec + 1000000000LL -
                     startTime.tv_nsec;
                 timeDiff.tv_sec--;
             }
             else
                 timeDiff.tv_nsec = endTime.tv_nsec - startTime.tv_nsec;
 
-            return timeDiff.tv_sec * 1000000000L + timeDiff.tv_nsec;
+            return static_cast<uint64_t>(timeDiff.tv_sec * 1000000000L +
+                                         timeDiff.tv_nsec);
+        }
+
+
+        /// Clock implementation description.
+
+        /// @returns a description of the clock implementation used.
+        static const char* Description()
+        {
+#       if   defined(CLOCK_MONOTONIC_RAW)
+            return "clock_gettime(CLOCK_MONOTONIC_RAW)";
+#       elif defined(CLOCK_MONOTONIC)
+            return "clock_gettime(CLOCK_MONOTONIC)";
+#       elif defined(CLOCK_REALTIME)
+            return "clock_gettime(CLOCK_REALTIME)";
+#       else
+            return "clock_gettime(-1)";
+#       endif
         }
     };
 
@@ -259,7 +314,7 @@ namespace hayai
         /// Get the current time as a time point.
 
         /// @returns the current time point.
-        static TimePoint Now()
+        static TimePoint Now() __hayai_noexcept
         {
             TimePoint result;
             gettimeofday(&result, NULL);
@@ -273,11 +328,32 @@ namespace hayai
         /// @param endTime End time point.
         /// @returns the number of nanoseconds elapsed between the two time
         /// points.
-        static int64_t Duration(const TimePoint& startTime,
-                                const TimePoint& endTime)
+        static uint64_t Duration(const TimePoint& startTime,
+                                 const TimePoint& endTime) __hayai_noexcept
         {
-            return ((endTime.tv_sec - startTime.tv_sec) * 1000000000L +
-                    (endTime.tv_usec - startTime.tv_usec) * 1000);
+            TimePoint timeDiff;
+
+            timeDiff.tv_sec = endTime.tv_sec - startTime.tv_sec;
+            if (endTime.tv_usec < startTime.tv_usec)
+            {
+                timeDiff.tv_usec = endTime.tv_usec + 1000000L -
+                    startTime.tv_usec;
+                timeDiff.tv_sec--;
+            }
+            else
+                timeDiff.tv_usec = endTime.tv_usec - startTime.tv_usec;
+
+            return static_cast<uint64_t>(timeDiff.tv_sec * 1000000000LL +
+                                         timeDiff.tv_usec * 1000);
+        }
+
+
+        /// Clock implementation description.
+
+        /// @returns a description of the clock implementation used.
+        static const char* Description()
+        {
+            return "gettimeofday";
         }
     };
 #   endif

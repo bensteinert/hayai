@@ -3,6 +3,7 @@
 #include "hayai_outputter.hpp"
 #include "hayai_console.hpp"
 
+
 namespace hayai
 {
     /// Console outputter.
@@ -12,82 +13,89 @@ namespace hayai
         :   public Outputter
     {
     public:
+        /// Initialize console outputter.
+
+        /// @param stream Output stream. Must exist for the entire duration of
+        /// the outputter's use.
+        ConsoleOutputter(std::ostream& stream = std::cout)
+            :   _stream(stream)
+        {
+
+        }
+
+
         virtual void Begin(const std::size_t& enabledCount,
                            const std::size_t& disabledCount)
         {
-            std::cout << std::fixed;
-            std::cout << Console::TextGreen << "[==========]"
-                      << Console::TextDefault << " Running "
-                      << enabledCount
-                      << (enabledCount == 1 ?
-                          " benchmark." :
-                          " benchmarks");
+            _stream << std::fixed;
+            _stream << Console::TextGreen << "[==========]"
+                    << Console::TextDefault << " Running "
+                    << enabledCount
+                    << (enabledCount == 1 ? " benchmark." : " benchmarks");
 
             if (disabledCount)
-                std::cout << ", skipping "
-                          << disabledCount
-                          << (disabledCount == 1 ?
-                              " benchmark." :
-                              " benchmarks");
+                _stream << ", skipping "
+                        << disabledCount
+                        << (disabledCount == 1 ?
+                            " benchmark." :
+                            " benchmarks");
             else
-                std::cout << ".";
+                _stream << ".";
 
-            std::cout << std::endl;
+            _stream << std::endl;
         }
 
 
         virtual void End(const std::size_t& executedCount,
                          const std::size_t& disabledCount)
         {
-            std::cout << Console::TextGreen << "[==========]"
-                      << Console::TextDefault << " Ran " << executedCount
-                      << (executedCount == 1 ?
-                          " benchmark." :
-                          " benchmarks");
+            _stream << Console::TextGreen << "[==========]"
+                    << Console::TextDefault << " Ran " << executedCount
+                    << (executedCount == 1 ?
+                        " benchmark." :
+                        " benchmarks");
 
             if (disabledCount)
-                std::cout << ", skipped "
-                          << disabledCount
-                          << (disabledCount == 1 ?
-                              " benchmark." :
-                              " benchmarks");
+                _stream << ", skipped "
+                        << disabledCount
+                        << (disabledCount == 1 ?
+                            " benchmark." :
+                            " benchmarks");
             else
-                std::cout << ".";
+                _stream << ".";
 
-            std::cout << std::endl;
+            _stream << std::endl;
         }
 
 
         inline void BeginOrSkipTest(const std::string& fixtureName,
                                     const std::string& testName,
-                                    const std::string& parameters,
+                                    const TestParametersDescriptor& parameters,
                                     const std::size_t& runsCount,
                                     const std::size_t& iterationsCount,
                                     const bool skip)
         {
             if (skip)
-                std::cout << Console::TextCyan << "[ DISABLED ]";
+                _stream << Console::TextCyan << "[ DISABLED ]";
             else
-                std::cout << Console::TextGreen << "[ RUN      ]";
+                _stream << Console::TextGreen << "[ RUN      ]";
 
-            std::cout << Console::TextYellow << " "
-                      << fixtureName << "."
-                      << testName
-                      << parameters
-                      << Console::TextDefault
-                      << " (" << runsCount
-                      << (runsCount == 1 ? " run, " : " runs, ")
-                      << iterationsCount
-                      << (iterationsCount == 1 ?
-                          " iteration per run)" :
-                          " iterations per run)")
-                      << std::endl;
+            _stream << Console::TextYellow << " ";
+            WriteTestNameToStream(_stream, fixtureName, testName, parameters);
+            _stream << Console::TextDefault
+                    << " (" << runsCount
+                    << (runsCount == 1 ? " run, " : " runs, ")
+                    << iterationsCount
+                    << (iterationsCount == 1 ?
+                        " iteration per run)" :
+                        " iterations per run)")
+                    << std::endl;
         }
 
 
         virtual void BeginTest(const std::string& fixtureName,
                                const std::string& testName,
-                               const std::string& parameters,
+                               const TestParametersDescriptor& parameters,
                                const std::size_t& runsCount,
                                const std::size_t& iterationsCount)
         {
@@ -100,11 +108,13 @@ namespace hayai
         }
 
 
-        virtual void SkipDisabledTest(const std::string& fixtureName,
-                                      const std::string& testName,
-                                      const std::string& parameters,
-                                      const std::size_t& runsCount,
-                                      const std::size_t& iterationsCount)
+        virtual void SkipDisabledTest(
+            const std::string& fixtureName,
+            const std::string& testName,
+            const TestParametersDescriptor& parameters,
+            const std::size_t& runsCount,
+            const std::size_t& iterationsCount
+        )
         {
             BeginOrSkipTest(fixtureName,
                             testName,
@@ -117,10 +127,10 @@ namespace hayai
 
         virtual void EndTest(const std::string& fixtureName,
                              const std::string& testName,
-                             const std::string& parameters,
+                             const TestParametersDescriptor& parameters,
                              const TestResult& result)
         {
-#define PAD(x) std::cout << std::setw(34) << x << std::endl;
+#define PAD(x) _stream << std::setw(34) << x << std::endl;
 #define PAD_DEVIATION(description,                                      \
                       deviated,                                         \
                       average,                                          \
@@ -160,22 +170,20 @@ namespace hayai
                     Console::TextDefault << ")");                       \
             }
 
-            std::cout << Console::TextGreen << "[     DONE ]"
-                      << Console::TextYellow << " "
-                      << fixtureName << "."
-                      << testName
-                      << parameters
-                      << Console::TextDefault << " ("
-                      << std::setprecision(6)
-                      << (result.TimeTotal() / 1000000.0) << " ms)"
-                      << std::endl;
+            _stream << Console::TextGreen << "[     DONE ]"
+                    << Console::TextYellow << " ";
+            WriteTestNameToStream(_stream, fixtureName, testName, parameters);
+            _stream << Console::TextDefault << " ("
+                    << std::setprecision(6)
+                    << (result.TimeTotal() / 1000000.0) << " ms)"
+                    << std::endl;
 
-            std::cout << Console::TextBlue << "[   RUNS   ] "
-                      << Console::TextDefault
-                      << "       Average time: "
-                      << std::setprecision(3)
-                      << result.RunTimeAverage() / 1000.0 << " us"
-                      << std::endl;
+            _stream << Console::TextBlue << "[   RUNS   ] "
+                    << Console::TextDefault
+                    << "       Average time: "
+                    << std::setprecision(3)
+                    << result.RunTimeAverage() / 1000.0 << " us"
+                    << std::endl;
 
             PAD_DEVIATION_INVERSE("Fastest: ",
                                   (result.RunTimeMinimum() / 1000.0),
@@ -186,7 +194,7 @@ namespace hayai
                                   (result.RunTimeAverage() / 1000.0),
                                   "us");
 
-            std::cout << std::setprecision(5);
+            _stream << std::setprecision(5);
 
             PAD("");
             PAD("Average performance: " <<
@@ -200,12 +208,12 @@ namespace hayai
                           result.RunsPerSecondAverage(),
                           "runs/s");
 
-            std::cout << Console::TextBlue << "[ITERATIONS] "
-                      << Console::TextDefault
-                      << std::setprecision(3)
-                      << "       Average time: "
-                      << result.IterationTimeAverage() / 1000.0 << " us"
-                      << std::endl;
+            _stream << Console::TextBlue << "[ITERATIONS] "
+                    << Console::TextDefault
+                    << std::setprecision(3)
+                    << "       Average time: "
+                    << result.IterationTimeAverage() / 1000.0 << " us"
+                    << std::endl;
 
             PAD_DEVIATION_INVERSE("Fastest: ",
                                   (result.IterationTimeMinimum() / 1000.0),
@@ -216,7 +224,7 @@ namespace hayai
                                   (result.IterationTimeAverage() / 1000.0),
                                   "us");
 
-            std::cout << std::setprecision(5);
+            _stream << std::setprecision(5);
 
             PAD("");
             PAD("Average performance: " <<
@@ -235,6 +243,9 @@ namespace hayai
 #undef PAD_DEVIATION
 #undef PAD
         }
+
+
+        std::ostream& _stream;
     };
 }
 #endif

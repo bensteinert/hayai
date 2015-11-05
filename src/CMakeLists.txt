@@ -2,10 +2,13 @@ file(GLOB hayai_headers
   hayai.hpp
   hayai_benchmarker.hpp
   hayai_clock.hpp
+  hayai_compatibility.hpp
   hayai_console.hpp
   hayai_console_outputter.hpp
   hayai_default_test_factory.hpp
   hayai_fixture.hpp
+  hayai_json_outputter.hpp
+  hayai_junit_xml_outputter.hpp
   hayai_outputter.hpp
   hayai_test.hpp
   hayai_test_descriptor.hpp
