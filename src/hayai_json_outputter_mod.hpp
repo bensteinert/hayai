@@ -54,67 +54,78 @@ namespace mod_hayai
         }
 
 
-        virtual void BeginTest(const std::string& fixtureName,
-                               const std::string& testName,
-                               const std::string& parameters,
-                               const std::size_t& runsCount,
-                               const std::size_t& iterationsCount) {
-            if (!jsonFile) {
-                return;
-            }
+        virtual void BeginTest(const std::string &fixtureName, const std::string &testName,
+                               const hayai::TestParametersDescriptor &parameters, const std::size_t &runsCount,
+                               const std::size_t &iterationsCount);
 
-            std::stringstream stream("");
+        virtual void EndTest(const std::string &fixtureName, const std::string &testName,
+                             const hayai::TestParametersDescriptor &parameters, const hayai::TestResult &result);
 
-            if (initialWrite) {
-                initialWrite = false;
-            } else {
-                WRITE_DELIMITER(stream, ",", 1);
-            }
+        virtual void SkipDisabledTest(const std::string &fixtureName, const std::string &testName,
+                                      const hayai::TestParametersDescriptor &parameters, const std::size_t &runsCount,
+                                      const std::size_t &iterationsCount);
 
-            WRITE_DELIMITER(stream, "{", 1);
-
-            WRITE_PROPERTY(stream, "group", fixtureName, 2);
-            WRITE_PROPERTY(stream, "name", testName, 2);
-            WRITE_PROPERTY(stream, "benchmarkParameters", parameters, 2);
-            WRITE_PROPERTY(stream, "numberOfRuns", runsCount, 2);
-            WRITE_PROPERTY(stream, "numberOfIterationsPerRun", iterationsCount, 2);
-
-
-            const std::string &jsonBegin = stream.str();
-            fwrite(jsonBegin.c_str(), 1, jsonBegin.length(), jsonFile);
-        }
-
-
-        virtual void EndTest(const std::string& fixtureName,
-                             const std::string& testName,
-                             const std::string& parameters,
-                             const hayai::TestResult& result) {
-            if (!jsonFile) {
-                return;
-            }
-
-            std::stringstream stream("");
-
-            WRITE_PROPERTY(stream, "totalTime", result.TimeTotal(), 2);
-            WRITE_PROPERTY(stream, "averagePerRun", result.RunTimeAverage(), 2);
-            WRITE_PROPERTY(stream, "fastestRun", result.RunTimeMinimum(), 2);
-            WRITE_PROPERTY_NO_COMMA(stream, "slowestRun", result.RunTimeMaximum(), 2);
-
-            WRITE_DELIMITER(stream, "}", 1);
-
-            const std::string &listEntry = stream.str();
-
-            fwrite(listEntry.c_str(), 1, listEntry.length(), jsonFile);
-        }
-
-        virtual void SkipDisabledTest(const std::string& fixtureName,
-                                      const std::string& testName,
-                                      const std::string& parameters,
-                                      const std::size_t& runsCount,
-                                      const std::size_t& iterationsCount) {
-
-        };
     };
+
+
+    void JsonOutputter::BeginTest(const std::string &fixtureName, const std::string &testName,
+                                  const hayai::TestParametersDescriptor &parameters, const std::size_t &runsCount,
+                                  const std::size_t &iterationsCount) {
+
+        if (!jsonFile) {
+            return;
+        }
+
+        std::stringstream stream("");
+
+        if (initialWrite) {
+            initialWrite = false;
+        } else {
+            WRITE_DELIMITER(stream, ",", 1);
+        }
+
+        WRITE_DELIMITER(stream, "{", 1);
+
+        WRITE_PROPERTY(stream, "group", fixtureName, 2);
+        WRITE_PROPERTY(stream, "name", testName, 2);
+        //WRITE_PROPERTY(stream, "benchmarkParameters", parameters, 2);
+        WRITE_PROPERTY(stream, "numberOfRuns", runsCount, 2);
+        WRITE_PROPERTY(stream, "numberOfIterationsPerRun", iterationsCount, 2);
+
+
+        const std::string &jsonBegin = stream.str();
+        fwrite(jsonBegin.c_str(), 1, jsonBegin.length(), jsonFile);
+
+    }
+
+
+    void JsonOutputter::EndTest(const std::string &fixtureName, const std::string &testName,
+                                const hayai::TestParametersDescriptor &parameters, const hayai::TestResult &result) {
+
+        if (!jsonFile) {
+            return;
+        }
+
+        std::stringstream stream("");
+
+        WRITE_PROPERTY(stream, "totalTime", result.TimeTotal(), 2);
+        WRITE_PROPERTY(stream, "averagePerRun", result.RunTimeAverage(), 2);
+        WRITE_PROPERTY(stream, "fastestRun", result.RunTimeMinimum(), 2);
+        WRITE_PROPERTY_NO_COMMA(stream, "slowestRun", result.RunTimeMaximum(), 2);
+
+        WRITE_DELIMITER(stream, "}", 1);
+
+        const std::string &listEntry = stream.str();
+
+        fwrite(listEntry.c_str(), 1, listEntry.length(), jsonFile);
+    }
+
+
+    void JsonOutputter::SkipDisabledTest(const std::string &fixtureName, const std::string &testName,
+                                         const hayai::TestParametersDescriptor &parameters,
+                                         const std::size_t &runsCount, const std::size_t &iterationsCount) {
+
+    }
 }
 
 
